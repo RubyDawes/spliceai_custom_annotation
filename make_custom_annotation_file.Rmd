@@ -1,0 +1,38 @@
+---
+title: "R Notebook"
+output: 
+---
+
+```{r}
+library(data.table)
+
+# download GTF file for ensembl 108 if not already in the required folder
+if (!file.exists("gtf/Homo_sapiens.GRCh38.108.chr.gtf.gz")) {
+  download.file("https://ftp.ensembl.org/pub/release-108/gtf/homo_sapiens/Homo_sapiens.GRCh38.108.chr.gtf.gz", "gtf/Homo_sapiens.GRCh38.108.chr.gtf.gz")
+}
+```
+
+# needs to match file here https://github.com/Illumina/SpliceAI/blob/master/spliceai/annotations/grch38.txt
+
+#NAME	CHROM	STRAND	TX_START	TX_END	EXON_START	EXON_END
+OR4F5	1	+	69090	70008	69090,	70008,
+OR4F16	1	-	685715	686654	685715,	686654,
+SAMD11	1	+	925737	944575	925737,925921,930154,931038,935771,939039,939274,941143,942135,942409,942558,943252,943697,943907,	
+
+```{r}
+# read in gtf file
+gtf_file = list.files(path = 'gtf', full.names = TRUE)
+gtf <- rtracklayer::import(gtf_file)
+gtf_dt = as.data.table(gtf)
+
+annotation_file = gtf_dt[type == 'transcript', .(`#NAME` = transcript_id, CHROM = seqnames, STRAND = strand, TX_START = start, TX_END = end)]
+
+exon_info = gtf_dt[type == 'exon', .(`#NAME` = transcript_id, CHROM = seqnames, STRAND = strand, EXON_START = start, EXON_END = end)]
+
+exon_info = exon_info[, .(EXON_START = paste0(paste(EXON_START, collapse = ','), ','),
+              EXON_END = paste0(paste(EXON_END, collapse = ','), ',')), by = .(`#NAME`, CHROM, STRAND)]
+
+annotation_file = annotation_file[exon_info, on = .(`#NAME`, CHROM, STRAND)]
+
+fwrite(annotation_file, output = 'output/grch38_ensemblv108.txt')
+```
