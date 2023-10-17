@@ -6,3 +6,5 @@ gtf/*
 */.DS_Store
 .DS_Store
 *.Rproj
+output/*
+gtf/*
